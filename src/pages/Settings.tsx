@@ -74,6 +74,7 @@ export default function Settings() {
             <input
               className="input mt-1"
               value={settings.name}
+              placeholder="给自己起个名字,会显示在顶部问候语"
               onChange={(e) => updateSettings({ name: e.target.value })}
             />
           </div>

@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react';
 import { nanoid } from 'nanoid';
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2, Sparkles, FileDown } from 'lucide-react';
 import { useStore } from '@/store';
 import { useT } from '@/lib/useT';
 import { Card } from '@/components/ui/Card';
 import { Empty } from '@/components/ui/Empty';
+import { PdfPreviewModal } from '@/components/ui/PdfPreviewModal';
 import type { Review, ReviewPeriod } from '@/types';
 import { getMonthRange, isInRange } from '@/lib/utils';
+import { findTemplate } from '@/data/templates';
+import { generateReviewDraft } from '@/features/reviews/generate';
+import { reviewToMarkdown } from '@/lib/toMarkdown';
 
 const periodLabel: Record<ReviewPeriod, string> = {
   quarter: '季度',
@@ -41,9 +45,11 @@ export default function Reviews() {
   const reviews = useStore((s) => s.reviews);
   const saveReview = useStore((s) => s.saveReview);
   const removeReview = useStore((s) => s.removeReview);
+  const templateId = useStore((s) => s.profile.templateId);
 
   const [period, setPeriod] = useState<ReviewPeriod>('quarter');
   const [current, setCurrent] = useState<Review | null>(null);
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   const range = useMemo(() => currentPeriodRange(period), [period]);
 
@@ -65,15 +71,24 @@ export default function Reviews() {
   }, [tasks, achievements, period]);
 
   const startNew = () => {
+    const drafted = generateReviewDraft({
+      period,
+      periodStart: range.start.toISOString(),
+      periodEnd: range.end.toISOString(),
+      tasks,
+      projects,
+      achievements,
+      template: findTemplate(templateId),
+    });
     const draft: Review = {
       id: nanoid(8),
       period,
       periodStart: range.start.toISOString(),
       periodEnd: range.end.toISOString(),
-      situation: '',
-      task: '',
-      action: '',
-      result: '',
+      situation: drafted.situation,
+      task: drafted.task,
+      action: drafted.action,
+      result: drafted.result,
       metrics,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -100,8 +115,8 @@ export default function Reviews() {
             ))}
           </select>
           <button className="btn-primary" onClick={startNew}>
-            <Plus className="h-4 w-4" />
-            新建复盘
+            <Sparkles className="h-4 w-4" />
+            自动生成复盘
           </button>
         </div>
       </div>
@@ -121,17 +136,23 @@ export default function Reviews() {
             <div className="text-sm text-[rgb(var(--muted))]">
               {active.periodStart.slice(0, 10)} - {active.periodEnd.slice(0, 10)}
             </div>
-            <button
-              className="btn-ghost text-red-500"
-              onClick={() => {
-                if (confirm('确认删除?')) {
-                  removeReview(active.id);
-                  setCurrent(null);
-                }
-              }}
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button className="btn-secondary" onClick={() => setPdfOpen(true)}>
+                <FileDown className="h-4 w-4" />
+                PDF
+              </button>
+              <button
+                className="btn-ghost text-red-500"
+                onClick={() => {
+                  if (confirm('确认删除?')) {
+                    removeReview(active.id);
+                    setCurrent(null);
+                  }
+                }}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(['situation', 'task', 'action', 'result'] as const).map((k) => (
@@ -161,7 +182,7 @@ export default function Reviews() {
         </Card>
       ) : (
         <Empty
-          title="点「新建复盘」开始"
+          title="点「自动生成复盘」开始"
           desc="每个周期结束前给自己一个小时,把 STAR 填一遍,绩效面谈/答辩/复投都能用。"
         />
       )}
@@ -184,8 +205,15 @@ export default function Reviews() {
         </Card>
       )}
 
-      {/* mark unused variable used */}
-      <div className="hidden">{projects.length}</div>
+      {active && (
+        <PdfPreviewModal
+          open={pdfOpen}
+          onClose={() => setPdfOpen(false)}
+          title="复盘预览"
+          content={reviewToMarkdown(active, findTemplate(templateId))}
+          filename={`复盘_${active.periodStart.slice(0, 10)}`}
+        />
+      )}
     </div>
   );
 }

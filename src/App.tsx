@@ -2,6 +2,9 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { OnboardingModal } from '@/components/shared/OnboardingModal';
+import { AuthGuard } from '@/components/shared/AuthGuard';
+import { SessionSync } from '@/components/shared/SessionSync';
+import { AuthProvider } from '@/lib/auth';
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Tasks = lazy(() => import('@/pages/Tasks'));
@@ -11,6 +14,7 @@ const Reports = lazy(() => import('@/pages/Reports'));
 const Reviews = lazy(() => import('@/pages/Reviews'));
 const Stats = lazy(() => import('@/pages/Stats'));
 const Settings = lazy(() => import('@/pages/Settings'));
+const Login = lazy(() => import('@/pages/Login'));
 
 const Fallback = () => (
   <div className="p-6 text-sm text-[rgb(var(--muted))]">加载中...</div>
@@ -18,7 +22,24 @@ const Fallback = () => (
 
 const router = createBrowserRouter([
   {
-    element: <AppShell />,
+    path: '/login',
+    element: (
+      <Suspense fallback={<Fallback />}>
+        <Login />
+      </Suspense>
+    ),
+  },
+  {
+    element: (
+      <AuthGuard>
+        <SessionSync>
+          <>
+            <AppShell />
+            <OnboardingModal />
+          </>
+        </SessionSync>
+      </AuthGuard>
+    ),
     children: [
       { path: '/', element: <Suspense fallback={<Fallback />}><Dashboard /></Suspense> },
       { path: '/tasks', element: <Suspense fallback={<Fallback />}><Tasks /></Suspense> },
@@ -34,9 +55,8 @@ const router = createBrowserRouter([
 
 export function App() {
   return (
-    <>
+    <AuthProvider>
       <RouterProvider router={router} />
-      <OnboardingModal />
-    </>
+    </AuthProvider>
   );
 }

@@ -1,23 +1,7 @@
 import type { WorkspaceData } from '@/types';
-import { todayISO } from '@/lib/utils';
 import { defaultTemplateId, templates } from '@/data/templates';
 
-function daysAgo(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString();
-}
-
-function dateAgo(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-
 export function createSeedData(): WorkspaceData {
-  const now = new Date().toISOString();
-  const today = todayISO();
-
   return {
     version: 1,
     profile: {
@@ -27,7 +11,7 @@ export function createSeedData(): WorkspaceData {
     },
     templates,
     settings: {
-      name: '你好',
+      name: '',
       theme: 'light',
       retention: {
         autoArchiveEnabled: true,
@@ -37,207 +21,9 @@ export function createSeedData(): WorkspaceData {
         notifyBeforeCleanupDays: 7,
       },
     },
-    projects: [
-      {
-        id: 'p1',
-        name: '库存预警优化项目',
-        description: '通过异常识别与自动预警,降低断货和滞销风险。',
-        color: '#22C55E',
-        status: 'active',
-        progress: 75,
-        manualProgress: false,
-        startDate: dateAgo(30),
-        milestones: [
-          { id: 'm1', name: '需求评审通过', planDate: dateAgo(20), doneAt: daysAgo(20) },
-          { id: 'm2', name: '数据模型上线', planDate: dateAgo(10), doneAt: daysAgo(10) },
-          { id: 'm3', name: '预警规则试运行', planDate: today },
-        ],
-        createdAt: daysAgo(30),
-        updatedAt: now,
-      },
-      {
-        id: 'p2',
-        name: '销售复盘专项',
-        description: '按季度复盘销售数据,输出策略建议。',
-        color: '#3B82F6',
-        status: 'active',
-        progress: 40,
-        manualProgress: false,
-        milestones: [],
-        createdAt: daysAgo(14),
-        updatedAt: now,
-      },
-      {
-        id: 'p3',
-        name: '客户反馈闭环',
-        description: '收集客户反馈并推动改进落地。',
-        color: '#F59E0B',
-        status: 'active',
-        progress: 20,
-        manualProgress: false,
-        milestones: [],
-        createdAt: daysAgo(7),
-        updatedAt: now,
-      },
-    ],
-    tasks: [
-      {
-        id: 't1',
-        title: '完成供应商月度对账',
-        projectId: 'p1',
-        priority: 'high',
-        status: 'done',
-        planDate: today,
-        planTime: '09:00',
-        doneAt: new Date().toISOString(),
-        sortOrder: 1,
-        createdAt: daysAgo(1),
-        updatedAt: now,
-      },
-      {
-        id: 't2',
-        title: '输出库存异常分析',
-        projectId: 'p1',
-        priority: 'high',
-        status: 'done',
-        planDate: today,
-        planTime: '10:30',
-        doneAt: new Date().toISOString(),
-        isAchievement: true,
-        sortOrder: 2,
-        createdAt: daysAgo(1),
-        updatedAt: now,
-      },
-      {
-        id: 't3',
-        title: '修改销售复盘报告',
-        projectId: 'p2',
-        priority: 'medium',
-        status: 'done',
-        planDate: today,
-        planTime: '14:00',
-        doneAt: new Date().toISOString(),
-        sortOrder: 3,
-        createdAt: daysAgo(1),
-        updatedAt: now,
-      },
-      {
-        id: 't4',
-        title: '整理客户反馈数据',
-        projectId: 'p3',
-        priority: 'medium',
-        status: 'todo',
-        planDate: today,
-        planTime: '16:00',
-        sortOrder: 4,
-        createdAt: daysAgo(1),
-        updatedAt: now,
-      },
-      {
-        id: 't5',
-        title: '跟进项目需求变更',
-        projectId: 'p1',
-        priority: 'high',
-        status: 'todo',
-        planDate: today,
-        planTime: '17:00',
-        sortOrder: 5,
-        createdAt: daysAgo(1),
-        updatedAt: now,
-      },
-      {
-        id: 't6',
-        title: '准备部门周会材料',
-        priority: 'medium',
-        status: 'todo',
-        planDate: today,
-        sortOrder: 6,
-        createdAt: daysAgo(1),
-        updatedAt: now,
-      },
-      {
-        id: 't7',
-        title: '更新项目里程碑计划',
-        projectId: 'p1',
-        priority: 'low',
-        status: 'todo',
-        planDate: today,
-        sortOrder: 7,
-        createdAt: daysAgo(1),
-        updatedAt: now,
-      },
-      {
-        id: 't8',
-        title: '学习行业报告并记录',
-        priority: 'low',
-        status: 'todo',
-        planDate: today,
-        sortOrder: 8,
-        createdAt: daysAgo(1),
-        updatedAt: now,
-      },
-      {
-        id: 't9',
-        title: '梳理供应商谈判要点',
-        projectId: 'p1',
-        priority: 'medium',
-        status: 'done',
-        planDate: dateAgo(2),
-        doneAt: daysAgo(2),
-        sortOrder: 9,
-        createdAt: daysAgo(3),
-        updatedAt: daysAgo(2),
-      },
-    ],
-    achievements: [
-      {
-        id: 'a1',
-        title: '《库存异常分析》报告',
-        type: 'report',
-        projectId: 'p1',
-        description: '基于近 90 天销售与库存数据,识别 12 个异常 SKU 并给出补货/清仓建议。',
-        metric: '识别 12 个异常 SKU · 预计释放库存 30 万',
-        doneDate: today,
-        tags: ['数据分析', '库存'],
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: 'a2',
-        title: '销售复盘报告 V2',
-        type: 'report',
-        projectId: 'p2',
-        description: 'Q2 销售复盘,新增渠道贡献度和 SKU TOP 分析。',
-        metric: '触达 3 个业务部门',
-        doneDate: dateAgo(3),
-        tags: ['复盘', '销售'],
-        createdAt: daysAgo(3),
-        updatedAt: daysAgo(3),
-      },
-      {
-        id: 'a3',
-        title: '客户反馈数据集',
-        type: 'tool',
-        projectId: 'p3',
-        description: '标准化模板 + 200 条基线数据。',
-        metric: '沉淀 200 条反馈',
-        doneDate: dateAgo(5),
-        tags: ['客户'],
-        createdAt: daysAgo(5),
-        updatedAt: daysAgo(5),
-      },
-      {
-        id: 'a4',
-        title: '部门供应链分享',
-        type: 'share',
-        description: '内部分享《供应链数据化》30 分钟,覆盖 25 人。',
-        metric: '覆盖 25 人 · 平均反馈 4.6/5',
-        doneDate: dateAgo(12),
-        tags: ['分享'],
-        createdAt: daysAgo(12),
-        updatedAt: daysAgo(12),
-      },
-    ],
+    projects: [],
+    tasks: [],
+    achievements: [],
     reports: [],
     reviews: [],
   };

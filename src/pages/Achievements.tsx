@@ -1,21 +1,43 @@
 import { useMemo, useState } from 'react';
-import { Plus, Trophy, Trash2, Edit3 } from 'lucide-react';
+import { Plus, Trophy, Trash2, Edit3, Sparkles, FileDown } from 'lucide-react';
 import { useStore } from '@/store';
 import { useT } from '@/lib/useT';
 import { Card, Chip } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
 import { Empty } from '@/components/ui/Empty';
+import { PdfPreviewModal } from '@/components/ui/PdfPreviewModal';
 import { todayISO } from '@/lib/utils';
+import { findTemplate } from '@/data/templates';
+import { generateAchievementDrafts } from '@/features/achievements/generate';
+import { achievementToMarkdown } from '@/lib/toMarkdown';
 import type { Achievement } from '@/types';
 
 export default function Achievements() {
   const t = useT();
   const achievements = useStore((s) => s.achievements);
   const projects = useStore((s) => s.projects);
+  const tasks = useStore((s) => s.tasks);
+  const templateId = useStore((s) => s.profile.templateId);
   const template = useStore((s) => s.templates.find((tpl) => tpl.id === s.profile.templateId));
   const [editing, setEditing] = useState<Achievement | null>(null);
   const [creating, setCreating] = useState(false);
+  const [pdfTarget, setPdfTarget] = useState<Achievement | null>(null);
   const removeAchievement = useStore((s) => s.removeAchievement);
+  const addAchievement = useStore((s) => s.addAchievement);
+
+  const autoGenerate = () => {
+    const drafts = generateAchievementDrafts({
+      tasks,
+      achievements,
+      template: findTemplate(templateId),
+    });
+    if (drafts.length === 0) {
+      alert('没有可沉淀的新内容。把已完成的任务勾选「标记为成果类」后再试。');
+      return;
+    }
+    drafts.forEach((d) => addAchievement(d));
+    alert(`已生成 ${drafts.length} 条${t('achievement.singular')}草稿,可逐条编辑补充。`);
+  };
 
   const byMonth = useMemo(() => {
     const map = new Map<string, Achievement[]>();
@@ -34,10 +56,16 @@ export default function Achievements() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">{t('nav.achievements')}</h2>
-        <button className="btn-primary" onClick={() => setCreating(true)}>
-          <Plus className="h-4 w-4" />
-          新建{t('achievement.singular')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button className="btn-secondary" onClick={autoGenerate} title="从已完成的成果类任务生成草稿">
+            <Sparkles className="h-4 w-4" />
+            自动生成
+          </button>
+          <button className="btn-primary" onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" />
+            新建{t('achievement.singular')}
+          </button>
+        </div>
       </div>
 
       {achievements.length === 0 ? (
@@ -88,6 +116,9 @@ export default function Achievements() {
                           )}
                         </div>
                         <div className="opacity-0 group-hover:opacity-100 flex gap-1">
+                          <button className="btn-ghost h-8 w-8 !p-0" onClick={() => setPdfTarget(a)} title="导出 PDF">
+                            <FileDown className="h-3.5 w-3.5" />
+                          </button>
                           <button className="btn-ghost h-8 w-8 !p-0" onClick={() => setEditing(a)}>
                             <Edit3 className="h-3.5 w-3.5" />
                           </button>
@@ -118,6 +149,20 @@ export default function Achievements() {
           setEditing(null);
         }}
       />
+
+      {pdfTarget && (
+        <PdfPreviewModal
+          open={!!pdfTarget}
+          onClose={() => setPdfTarget(null)}
+          title={pdfTarget.title}
+          content={achievementToMarkdown(
+            pdfTarget,
+            projects.find((p) => p.id === pdfTarget.projectId),
+            findTemplate(templateId),
+          )}
+          filename={pdfTarget.title}
+        />
+      )}
     </div>
   );
 }

@@ -1,12 +1,17 @@
 import { useMemo, useState } from 'react';
-import { Copy, Download, FileText, Sparkles, Trash2 } from 'lucide-react';
+import { Copy, Download, Eye, FileDown, FileText, Pencil, Sparkles, Trash2 } from 'lucide-react';
 import { useStore } from '@/store';
 import { useT } from '@/lib/useT';
 import { Card, Chip } from '@/components/ui/Card';
 import { Empty } from '@/components/ui/Empty';
+import { MarkdownView } from '@/components/ui/MarkdownView';
+import { PdfPreviewModal } from '@/components/ui/PdfPreviewModal';
 import { generateReport } from '@/features/reports/generate';
+import { findTemplate } from '@/data/templates';
 import type { Report, ReportType } from '@/types';
 import { cn } from '@/lib/utils';
+
+type Mode = 'view' | 'edit';
 
 export default function Reports() {
   const t = useT();
@@ -14,12 +19,14 @@ export default function Reports() {
   const tasks = useStore((s) => s.tasks);
   const projects = useStore((s) => s.projects);
   const achievements = useStore((s) => s.achievements);
-  const template = useStore((s) => s.templates.find((tpl) => tpl.id === s.profile.templateId));
+  const templateId = useStore((s) => s.profile.templateId);
   const saveReport = useStore((s) => s.saveReport);
   const removeReport = useStore((s) => s.removeReport);
 
   const [type, setType] = useState<ReportType>('weekly');
   const [current, setCurrent] = useState<Report | null>(null);
+  const [mode, setMode] = useState<Mode>('view');
+  const [pdfOpen, setPdfOpen] = useState(false);
 
   const list = useMemo(
     () => [...reports].filter((r) => r.type === type).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
@@ -29,13 +36,12 @@ export default function Reports() {
   const activeReport = current ?? list[0] ?? null;
 
   const doGenerate = () => {
-    if (!template) return;
     const draft = generateReport({
       type,
       tasks,
       projects,
       achievements,
-      template,
+      template: findTemplate(templateId),
     });
     saveReport(draft);
     setCurrent(draft);
@@ -102,9 +108,34 @@ export default function Reports() {
         <div className="lg:col-span-2">
           {activeReport ? (
             <Card>
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-sm text-[rgb(var(--muted))]">
-                  {activeReport.periodStart.slice(0, 10)} - {activeReport.periodEnd.slice(0, 10)}
+              <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <div
+                    className="flex items-center gap-1 border rounded-lg p-0.5 text-sm"
+                    style={{ borderColor: 'rgb(var(--border))' }}
+                  >
+                    <button
+                      className={cn(
+                        'px-2 py-1 rounded-md flex items-center gap-1',
+                        mode === 'view' ? 'bg-brand-500 text-white' : '',
+                      )}
+                      onClick={() => setMode('view')}
+                    >
+                      <Eye className="h-3.5 w-3.5" /> 预览
+                    </button>
+                    <button
+                      className={cn(
+                        'px-2 py-1 rounded-md flex items-center gap-1',
+                        mode === 'edit' ? 'bg-brand-500 text-white' : '',
+                      )}
+                      onClick={() => setMode('edit')}
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> 编辑
+                    </button>
+                  </div>
+                  <div className="text-sm text-[rgb(var(--muted))]">
+                    {activeReport.periodStart.slice(0, 10)} - {activeReport.periodEnd.slice(0, 10)}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
@@ -133,6 +164,10 @@ export default function Reports() {
                     <Download className="h-4 w-4" />
                     下载
                   </button>
+                  <button className="btn-secondary" onClick={() => setPdfOpen(true)}>
+                    <FileDown className="h-4 w-4" />
+                    PDF
+                  </button>
                   <button
                     className="btn-ghost text-red-500"
                     onClick={() => {
@@ -146,21 +181,30 @@ export default function Reports() {
                   </button>
                 </div>
               </div>
-              <textarea
-                className="w-full h-[500px] rounded-lg border bg-transparent p-3 text-sm outline-none focus:ring-2 focus:ring-brand-500/30 font-mono"
-                style={{ borderColor: 'rgb(var(--border))' }}
-                value={activeReport.content}
-                onChange={(e) => {
-                  const updated: Report = {
-                    ...activeReport,
-                    content: e.target.value,
-                    edited: true,
-                    updatedAt: new Date().toISOString(),
-                  };
-                  saveReport(updated);
-                  setCurrent(updated);
-                }}
-              />
+              {mode === 'view' ? (
+                <div
+                  className="rounded-lg border p-4 min-h-[500px] max-h-[70vh] overflow-y-auto scrollbar-thin"
+                  style={{ borderColor: 'rgb(var(--border))' }}
+                >
+                  <MarkdownView content={activeReport.content} />
+                </div>
+              ) : (
+                <textarea
+                  className="w-full h-[500px] rounded-lg border bg-transparent p-3 text-sm outline-none focus:ring-2 focus:ring-brand-500/30 font-mono"
+                  style={{ borderColor: 'rgb(var(--border))' }}
+                  value={activeReport.content}
+                  onChange={(e) => {
+                    const updated: Report = {
+                      ...activeReport,
+                      content: e.target.value,
+                      edited: true,
+                      updatedAt: new Date().toISOString(),
+                    };
+                    saveReport(updated);
+                    setCurrent(updated);
+                  }}
+                />
+              )}
             </Card>
           ) : (
             <Card>
@@ -171,6 +215,16 @@ export default function Reports() {
           )}
         </div>
       </div>
+
+      {activeReport && (
+        <PdfPreviewModal
+          open={pdfOpen}
+          onClose={() => setPdfOpen(false)}
+          title={type === 'weekly' ? '周报预览' : '月报预览'}
+          content={activeReport.content}
+          filename={`${type === 'weekly' ? '周报' : '月报'}_${activeReport.periodStart.slice(0, 10)}`}
+        />
+      )}
     </div>
   );
 }
