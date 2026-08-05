@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Download, Loader2 } from 'lucide-react';
+import { useRef } from 'react';
+import { Printer } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { MarkdownView } from '@/components/ui/MarkdownView';
 
@@ -11,59 +11,47 @@ interface Props {
   onClose: () => void;
 }
 
-// 复用 MarkdownView 渲染内容 → html2pdf 光栅化为 PDF → iframe 内嵌预览。
-// 离屏容器固定浅色背景 + 固定宽度,保证导出的 PDF 版式稳定、中文不乱码。
+// 打印窗口用的自包含样式(新窗口没有 app 的 Tailwind,需内联覆盖语义元素)。
+const PRINT_STYLE = `
+  @page { size: A4; margin: 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         color: #1f2937; line-height: 1.7; font-size: 14px; margin: 0; padding: 24px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 16px 0 8px; }
+  h2 { font-size: 18px; font-weight: 600; margin: 16px 0 8px; }
+  h3 { font-size: 15px; font-weight: 600; margin: 12px 0 6px; }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 24px; margin: 8px 0; }
+  li { margin: 2px 0; }
+  code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+  pre { background: #f1f5f9; padding: 12px; border-radius: 8px; overflow-x: auto; }
+  blockquote { border-left: 4px solid #cbd5e1; padding-left: 12px; color: #64748b; margin: 8px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; font-size: 13px; }
+  hr { border: none; border-top: 1px solid #e2e8f0; margin: 16px 0; }
+  a { color: #2563eb; }
+`;
+
+// 复用 MarkdownView 在模态内做屏幕预览;导出走浏览器原生「打印 → 另存为 PDF」,
+// 零第三方依赖,中文渲染由系统字体保证,版式稳定。
 export function PdfPreviewModal({ open, title, content, filename = 'document', onClose }: Props) {
-  const sourceRef = useRef<HTMLDivElement>(null);
-  const [url, setUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    let createdUrl: string | null = null;
-    setLoading(true);
-    setUrl(null);
-
-    // 等待离屏 DOM 完成渲染再截图
-    const timer = setTimeout(async () => {
-      if (!sourceRef.current) return;
-      try {
-        const { default: html2pdf } = await import('html2pdf.js');
-        const bloburl = await html2pdf()
-          .set({
-            margin: [10, 10, 10, 10],
-            filename: `${filename}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
-          })
-          .from(sourceRef.current)
-          .outputPdf('bloburl');
-        if (cancelled) return;
-        createdUrl = bloburl;
-        setUrl(bloburl);
-      } catch (e) {
-        console.error('[PdfPreviewModal] 生成 PDF 失败', e);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }, 60);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-      if (createdUrl) URL.revokeObjectURL(createdUrl);
-    };
-  }, [open, content, filename]);
-
-  const download = () => {
-    if (!url) return;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${filename}.pdf`;
-    a.click();
+  const exportPdf = () => {
+    const html = previewRef.current?.innerHTML;
+    if (!html) return;
+    const w = window.open('', '_blank', 'width=900,height=1000');
+    if (!w) {
+      alert('打印窗口被浏览器拦截,请允许弹窗后重试。');
+      return;
+    }
+    w.document.write(
+      `<!doctype html><html><head><meta charset="utf-8"><title>${filename}</title>` +
+        `<style>${PRINT_STYLE}</style></head><body>${html}` +
+        `<script>window.onload=function(){window.focus();window.print();};<\/script>` +
+        `</body></html>`,
+    );
+    w.document.close();
   };
 
   return (
@@ -73,37 +61,21 @@ export function PdfPreviewModal({ open, title, content, filename = 'document', o
       onClose={onClose}
       className="max-w-3xl"
       footer={
-        <button className="btn-primary" onClick={download} disabled={!url}>
-          <Download className="h-4 w-4" />
-          下载 PDF
+        <button className="btn-primary" onClick={exportPdf}>
+          <Printer className="h-4 w-4" />
+          导出 PDF
         </button>
       }
     >
-      {/* 离屏渲染源:固定浅色 + 固定宽度,不随主题变化 */}
-      <div className="fixed -left-[9999px] top-0" aria-hidden>
-        <div
-          ref={sourceRef}
-          style={{ width: '760px', padding: '24px', background: '#ffffff', color: '#1f2937' }}
-        >
-          <MarkdownView content={content} />
-        </div>
+      <div className="mb-3 text-xs text-[rgb(var(--muted))]">
+        点「导出 PDF」会打开打印窗口,在打印目标里选「另存为 PDF」即可保存。
       </div>
-
-      {loading && (
-        <div className="h-[60vh] grid place-items-center text-[rgb(var(--muted))]">
-          <div className="flex items-center gap-2 text-sm">
-            <Loader2 className="h-4 w-4 animate-spin" /> 正在生成 PDF 预览...
-          </div>
-        </div>
-      )}
-      {!loading && url && (
-        <iframe title={title} src={url} className="w-full h-[60vh] rounded-lg border-0" />
-      )}
-      {!loading && !url && (
-        <div className="h-[60vh] grid place-items-center text-sm text-[rgb(var(--muted))]">
-          生成失败,请重试。
-        </div>
-      )}
+      <div
+        ref={previewRef}
+        className="rounded-lg border p-4 max-h-[60vh] overflow-y-auto scrollbar-thin bg-white text-[#1f2937]"
+      >
+        <MarkdownView content={content} />
+      </div>
     </Modal>
   );
 }
