@@ -193,7 +193,6 @@ create table if not exists public.achievements (
   project_id text,
   description text,
   metric text,
-  attachments jsonb,
   done_date date not null,
   tags jsonb,
   created_at timestamptz not null default now(),

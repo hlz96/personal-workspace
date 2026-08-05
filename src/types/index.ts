@@ -92,7 +92,6 @@ export interface Achievement {
   projectId?: ID;
   description?: string;      // 富文本 / Markdown
   metric?: string;           // 「效率提升 30%」
-  attachments?: Array<{ name: string; url: string }>;
   doneDate: string;          // YYYY-MM-DD
   tags?: string[];
   createdAt: string;

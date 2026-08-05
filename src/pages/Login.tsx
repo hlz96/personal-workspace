@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Github, Mail, Loader2 } from 'lucide-react';
+import { Github, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 
@@ -14,9 +14,7 @@ export default function LoginPage() {
   const [msg, setMsg] = useState<{ kind: 'error' | 'info'; text: string } | null>(
     null,
   );
-  const [oauthLoading, setOauthLoading] = useState<'google' | 'github' | null>(
-    null,
-  );
+  const [oauthLoading, setOauthLoading] = useState<'github' | null>(null);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -78,7 +76,7 @@ export default function LoginPage() {
     }
   };
 
-  const oauth = async (provider: 'google' | 'github') => {
+  const oauth = async (provider: 'github') => {
     setOauthLoading(provider);
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
@@ -185,19 +183,6 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <button
-              type="button"
-              onClick={() => oauth('google')}
-              disabled={oauthLoading !== null}
-              className="btn-secondary w-full justify-center gap-2"
-            >
-              {oauthLoading === 'google' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Mail className="h-4 w-4" />
-              )}
-              使用 Google 登录
-            </button>
             <button
               type="button"
               onClick={() => oauth('github')}

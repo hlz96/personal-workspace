@@ -520,6 +520,14 @@ export function unbindUser() {
   }
 }
 
+// 登出:解绑同步 + 清本地缓存 + 内存置空,避免共用设备残留他人数据。
+// 内存重置为 seed 但不写盘(storage.clear 已清),下一位登录者由 SessionSync 重新水合。
+export function clearSessionData() {
+  unbindUser();
+  storage.clear();
+  useStore.setState(() => ({ ...createSeedData() }));
+}
+
 export function hydrateFromRemote(data: WorkspaceData) {
   // 内置模板从不入库(bulkInsertAll/upsertTemplate 过滤 !builtin),
   // 远端只返回自定义模板;这里把内置模板并回来,否则 store.templates 为空,

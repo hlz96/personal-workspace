@@ -4,6 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { OnboardingModal } from '@/components/shared/OnboardingModal';
 import { AuthGuard } from '@/components/shared/AuthGuard';
 import { SessionSync } from '@/components/shared/SessionSync';
+import { Toaster } from '@/components/ui/Toaster';
 import { AuthProvider } from '@/lib/auth';
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
@@ -57,6 +58,7 @@ export function App() {
   return (
     <AuthProvider>
       <RouterProvider router={router} />
+      <Toaster />
     </AuthProvider>
   );
 }

@@ -12,6 +12,13 @@ import type {
   WorkspaceData,
 } from '@/types';
 import { createSeedData } from '@/data/seed';
+import { toast } from '@/lib/toast';
+
+// 写操作失败:记录日志 + 提示用户(避免静默丢数据)
+function warnSave(scope: string, error: unknown) {
+  console.error(`[${scope}]`, error);
+  toast.error('云端保存失败,请检查网络后重试');
+}
 
 // -------- 行 <=> 领域模型 转换 --------
 // DB 用 snake_case,前端用 camelCase。转换只在这一层做。
@@ -171,7 +178,6 @@ type AchievementRow = {
   project_id: string | null;
   description: string | null;
   metric: string | null;
-  attachments: Achievement['attachments'] | null;
   done_date: string;
   tags: string[] | null;
   created_at: string;
@@ -186,7 +192,6 @@ function achievementFromRow(r: AchievementRow): Achievement {
     projectId: r.project_id ?? undefined,
     description: r.description ?? undefined,
     metric: r.metric ?? undefined,
-    attachments: r.attachments ?? undefined,
     doneDate: r.done_date,
     tags: r.tags ?? undefined,
     createdAt: r.created_at,
@@ -203,7 +208,6 @@ function achievementToRow(userId: string, a: Achievement): AchievementRow {
     project_id: a.projectId ?? null,
     description: a.description ?? null,
     metric: a.metric ?? null,
-    attachments: a.attachments ?? null,
     done_date: a.doneDate,
     tags: a.tags ?? null,
     created_at: a.createdAt,
@@ -524,7 +528,7 @@ export const remoteStorage = {
 
     const failed = results.find((r) => r.error);
     if (failed) {
-      console.error('[remoteStorage.bulkInsertAll]', failed.error);
+      warnSave('remoteStorage.bulkInsertAll', failed.error);
       return false;
     }
     return true;
@@ -544,47 +548,47 @@ export const remoteStorage = {
       settings,
     };
     const { error } = await supabase.from('profiles').upsert(row, { onConflict: 'user_id' });
-    if (error) console.error('[upsertProfile]', error);
+    if (error) warnSave('upsertProfile', error);
   },
 
   async upsertTask(userId: string, task: Task) {
     const { error } = await supabase
       .from('tasks')
       .upsert(taskToRow(userId, task), { onConflict: 'user_id,id' });
-    if (error) console.error('[upsertTask]', error);
+    if (error) warnSave('upsertTask', error);
   },
 
   async deleteTask(userId: string, id: string) {
     const { error } = await supabase.from('tasks').delete().eq('user_id', userId).eq('id', id);
-    if (error) console.error('[deleteTask]', error);
+    if (error) warnSave('deleteTask', error);
   },
 
   async upsertTasksBulk(userId: string, tasks: Task[]) {
     if (!tasks.length) return;
     const rows = tasks.map((t) => taskToRow(userId, t));
     const { error } = await supabase.from('tasks').upsert(rows, { onConflict: 'user_id,id' });
-    if (error) console.error('[upsertTasksBulk]', error);
+    if (error) warnSave('upsertTasksBulk', error);
   },
 
   async upsertProject(userId: string, project: Project) {
     const { error } = await supabase
       .from('projects')
       .upsert(projectToRow(userId, project), { onConflict: 'user_id,id' });
-    if (error) console.error('[upsertProject]', error);
+    if (error) warnSave('upsertProject', error);
   },
 
   async deleteProject(userId: string, id: string) {
     // 级联:先删该项目下的 milestones(RLS 保证只删自己的)
     await supabase.from('project_milestones').delete().eq('user_id', userId).eq('project_id', id);
     const { error } = await supabase.from('projects').delete().eq('user_id', userId).eq('id', id);
-    if (error) console.error('[deleteProject]', error);
+    if (error) warnSave('deleteProject', error);
   },
 
   async upsertMilestone(userId: string, projectId: string, m: Milestone) {
     const { error } = await supabase
       .from('project_milestones')
       .upsert(milestoneToRow(userId, projectId, m), { onConflict: 'user_id,id' });
-    if (error) console.error('[upsertMilestone]', error);
+    if (error) warnSave('upsertMilestone', error);
   },
 
   async deleteMilestone(userId: string, id: string) {
@@ -593,43 +597,43 @@ export const remoteStorage = {
       .delete()
       .eq('user_id', userId)
       .eq('id', id);
-    if (error) console.error('[deleteMilestone]', error);
+    if (error) warnSave('deleteMilestone', error);
   },
 
   async upsertAchievement(userId: string, a: Achievement) {
     const { error } = await supabase
       .from('achievements')
       .upsert(achievementToRow(userId, a), { onConflict: 'user_id,id' });
-    if (error) console.error('[upsertAchievement]', error);
+    if (error) warnSave('upsertAchievement', error);
   },
 
   async deleteAchievement(userId: string, id: string) {
     const { error } = await supabase.from('achievements').delete().eq('user_id', userId).eq('id', id);
-    if (error) console.error('[deleteAchievement]', error);
+    if (error) warnSave('deleteAchievement', error);
   },
 
   async upsertReport(userId: string, r: Report) {
     const { error } = await supabase
       .from('reports')
       .upsert(reportToRow(userId, r), { onConflict: 'user_id,id' });
-    if (error) console.error('[upsertReport]', error);
+    if (error) warnSave('upsertReport', error);
   },
 
   async deleteReport(userId: string, id: string) {
     const { error } = await supabase.from('reports').delete().eq('user_id', userId).eq('id', id);
-    if (error) console.error('[deleteReport]', error);
+    if (error) warnSave('deleteReport', error);
   },
 
   async upsertReview(userId: string, r: Review) {
     const { error } = await supabase
       .from('reviews')
       .upsert(reviewToRow(userId, r), { onConflict: 'user_id,id' });
-    if (error) console.error('[upsertReview]', error);
+    if (error) warnSave('upsertReview', error);
   },
 
   async deleteReview(userId: string, id: string) {
     const { error } = await supabase.from('reviews').delete().eq('user_id', userId).eq('id', id);
-    if (error) console.error('[deleteReview]', error);
+    if (error) warnSave('deleteReview', error);
   },
 
   async upsertTemplate(userId: string, t: Template) {
@@ -638,7 +642,7 @@ export const remoteStorage = {
     const { error } = await supabase
       .from('templates')
       .upsert(templateToRow(userId, t), { onConflict: 'user_id,id' });
-    if (error) console.error('[upsertTemplate]', error);
+    if (error) warnSave('upsertTemplate', error);
   },
 
   // 全清(resetAll 用)
@@ -656,7 +660,7 @@ export const remoteStorage = {
     for (const t of tables) {
       const { error } = await supabase.from(t).delete().eq('user_id', userId);
       if (error) {
-        console.error(`[clearAll:${t}]`, error);
+        warnSave(`clearAll:${t}`, error);
         return false;
       }
     }

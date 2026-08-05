@@ -45,6 +45,14 @@ pnpm preview    # 预览构建结果
 
 `vercel.json` 已配置 SPA 路由 rewrite,无需额外调整。
 
+### ⚠️ 部署注意事项(踩过的坑)
+
+- **必须在 Vercel 配置环境变量**:`VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY`(Settings → Environment Variables,勾选 Production)。这两个变量是**构建时**内联进 JS 的,改动后必须 **Redeploy 且取消 Build Cache** 才生效,否则线上连不上 Supabase。
+- **关闭 Deployment Protection**:Vercel 默认可能开启 Vercel Authentication,导致站点对公众返回 302/401(表现为打不开或白屏)。Settings → Deployment Protection → 关掉 Vercel Authentication。
+- **认准 Production 域名**:形如 `personal-workspace-hlz3.vercel.app`。带 hash 的部署快照 URL(如 `...-2bs4y4bx3-...`)会随每次部署变化且可能失效,不要用它做登录/分享入口。
+- **Supabase Auth 回调**:Authentication → URL Configuration 里,Site URL 与 Redirect URLs 都要包含线上 Production 域名(本地开发再额外加 `http://localhost:5173/**`),否则 OAuth 登录回调会跳错域名。
+- **邮箱验证**:Supabase 免费版内置邮件限流严重(易触发 `email rate limit exceeded`)。个人自用建议 Authentication 里关闭 Confirm email,改用 GitHub 登录或注册即登录。
+
 ## 目录结构
 
 ```
